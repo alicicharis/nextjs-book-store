@@ -96,3 +96,8 @@ export type BookWithAuthor = {
   created_at: Date;
   updated_at: Date;
 };
+
+export type BookExtended = Selectable<BooksTable> & {
+  authorName: string;
+  genreName: string;
+};

@@ -63,12 +63,16 @@ export default async function DashboardPage() {
     db
       .selectFrom("books")
       .innerJoin("authors", "authors.id", "books.author_id")
+      .innerJoin("genres", "genres.id", "books.genre_id")
       .select([
         "books.id",
         "books.title",
         "books.price",
         "books.created_at",
-        "authors.name",
+        "authors.name as authorName",
+        "authors.id as authorId",
+        "genres.name as genreName",
+        "genres.id as genreId",
       ])
       .orderBy("books.created_at", "desc")
       .limit(10)

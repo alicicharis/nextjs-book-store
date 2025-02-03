@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import {
   Author,
+  BookExtended,
   BookWithAuthor,
   CreateBookPayload,
   Genre,
@@ -32,24 +33,29 @@ export const createBook = async (book: CreateBookPayload) => {
   return res?.[0]?.id;
 };
 
-export const searchBook = async (search: string): Promise<BookWithAuthor[]> => {
+export const searchBook = async (search: string): Promise<BookExtended[]> => {
   const books = await db
     .selectFrom("books")
     .innerJoin("authors", "authors.id", "books.author_id")
-    .where(sql`LOWER(title)`, "like", `%${search.toLowerCase()}%`)
+    .innerJoin("genres", "genres.id", "books.genre_id")
+    .where(sql`LOWER(books.title)`, "like", `%${search.toLowerCase()}%`)
     .select([
       "books.id",
       "books.title",
       "books.price",
       "books.created_at",
       "books.updated_at",
-      "authors.name",
+      "books.stock",
+      "books.year",
+      "books.author_id",
+      "books.genre_id",
+      "authors.name as authorName",
+      "genres.name as genreName",
     ])
     .limit(10)
     .orderBy("books.created_at", "desc")
     .execute();
 
-  console.log("books: ", books);
   if (books.length === 0) return [];
 
   return books;
