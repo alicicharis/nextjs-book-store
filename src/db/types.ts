@@ -71,7 +71,7 @@ export interface OrderItemsTable {
 export type Book = Selectable<BooksTable>;
 export type NewBook = Insertable<BooksTable>;
 export type CreateBookPayload = Insertable<BooksTable>;
-export type UpdateBook = Updateable<BooksTable>;
+export type UpdateBookPayload = Updateable<BooksTable>;
 export type Author = Selectable<AuthorsTable>;
 export type NewAuthor = Insertable<AuthorsTable>;
 export type UpdateAuthor = Updateable<AuthorsTable>;

@@ -4,15 +4,16 @@ import { db } from "@/db";
 import {
   Author,
   BookExtended,
-  BookWithAuthor,
   CreateBookPayload,
   Genre,
-  UpdateBook,
+  UpdateBookPayload,
 } from "@/db/types";
 import { sql } from "kysely";
 
-export const updateBook = async (book: UpdateBook) => {
-  await db.updateTable("books").set(book).where("id", "=", book.id!).execute();
+export const updateBook = async (book: UpdateBookPayload) => {
+  if (!book.id) return false;
+
+  await db.updateTable("books").set(book).where("id", "=", book.id).execute();
 
   return true;
 };
@@ -83,4 +84,32 @@ export const getGenresByName = async (
     .execute();
 
   return genres;
+};
+
+export const getMissingBooks = async (
+  excludeIds: number[]
+): Promise<BookExtended | undefined> => {
+  const books = await db
+    .selectFrom("books")
+    .innerJoin("authors", "authors.id", "books.author_id")
+    .innerJoin("genres", "genres.id", "books.genre_id")
+    .select([
+      "books.id",
+      "books.title",
+      "books.price",
+      "books.created_at",
+      "books.updated_at",
+      "books.stock",
+      "books.year",
+      "books.author_id",
+      "books.genre_id",
+      "authors.name as authorName",
+      "genres.name as genreName",
+    ])
+    .where("books.id", "not in", excludeIds)
+    .limit(1)
+    .orderBy("books.created_at", "desc")
+    .executeTakeFirst();
+
+  return books;
 };

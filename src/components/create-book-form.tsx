@@ -11,14 +11,14 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { Plus } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "./ui/form";
 import { Input } from "./ui/input";
 import { createBookSchema, CreateBookSchema } from "@/app/validation";
-import { Author, BookExtended, CreateBookPayload, Genre } from "@/db/types";
+import { BookExtended, CreateBookPayload } from "@/db/types";
 import { createBook, getAuthorsByName, getGenresByName } from "@/app/actions";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useDebounceSearch } from "@/hooks/useDebounceSearch";
 
 export default function CreateBookForm({
   setBooks,
@@ -26,16 +26,22 @@ export default function CreateBookForm({
   setBooks: (books: any) => any;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState<boolean>(false);
-  const [authorSuggestions, setAuthorSuggestions] = useState<Partial<Author>[]>(
-    []
-  );
-  const [genreSuggestions, setGenreSuggestions] = useState<Partial<Genre>[]>(
-    []
-  );
-  const [isAuthorInputFocused, setIsAuthorInputFocused] =
-    useState<boolean>(false);
-  const [isGenreInputFocused, setIsGenreInputFocused] =
-    useState<boolean>(false);
+
+  const {
+    suggestions: authorSuggestions,
+    setSuggestions: setAuthorSuggestions,
+    isInputFocused: isAuthorInputFocused,
+    setIsInputFocused: setIsAuthorInputFocused,
+    debouncedSearch: debouncedAuthorSearch,
+  } = useDebounceSearch(getAuthorsByName);
+
+  const {
+    suggestions: genreSuggestions,
+    setSuggestions: setGenreSuggestions,
+    isInputFocused: isGenreInputFocused,
+    setIsInputFocused: setIsGenreInputFocused,
+    debouncedSearch: debouncedGenreSearch,
+  } = useDebounceSearch(getGenresByName);
 
   const form = useForm<CreateBookSchema>({
     resolver: zodResolver(createBookSchema),
@@ -90,52 +96,10 @@ export default function CreateBookForm({
     }
   };
 
-  const debounce = useCallback((func: Function, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  }, []);
-
-  const debouncedAuthorSearch = useCallback(
-    debounce(async (searchTerm: string) => {
-      if (searchTerm.length < 3) {
-        setAuthorSuggestions([]);
-        return;
-      }
-
-      const authors = await getAuthorsByName(searchTerm);
-
-      if (authors.length > 0) {
-        setAuthorSuggestions(authors);
-      }
-    }, 500),
-    []
-  );
-
-  const debouncedGenreSearch = useCallback(
-    debounce(async (searchTerm: string) => {
-      if (searchTerm.length < 3) {
-        setGenreSuggestions([]);
-        return;
-      }
-
-      const genres = await getGenresByName(searchTerm);
-
-      if (genres.length > 0) {
-        setGenreSuggestions(genres);
-      }
-    }, 500),
-    []
-  );
-
   return (
     <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
       <DialogTrigger asChild>
-        <Button onClick={() => form.reset()}>
-          <Plus className="mr-1 h-5 w-5" /> Add Book
-        </Button>
+        <Button onClick={() => form.reset()}>Add Book</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

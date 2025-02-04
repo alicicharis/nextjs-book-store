@@ -1,13 +1,16 @@
+"use client";
+
 import { updateBookSchema, UpdateBookSchema } from "@/app/validation";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Author, BookExtended, Genre } from "@/db/types";
+import { Author, BookExtended, Genre, UpdateBookPayload } from "@/db/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
@@ -21,83 +24,90 @@ import { Button } from "./ui/button";
 import { Pencil } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Input } from "./ui/input";
-import { getAuthorsByName, getGenresByName } from "@/app/actions";
+import { getAuthorsByName, getGenresByName, updateBook } from "@/app/actions";
+import { useDebounceSearch } from "@/hooks/useDebounceSearch";
 
-const EditBookForm = ({ book }: { book: BookExtended }) => {
+const EditBookForm = ({
+  book,
+  setBooks,
+}: {
+  book: BookExtended;
+  setBooks: (books: any) => void;
+}) => {
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
 
-  const [authorSuggestions, setAuthorSuggestions] = useState<Partial<Author>[]>(
-    []
-  );
-  const [genreSuggestions, setGenreSuggestions] = useState<Partial<Genre>[]>(
-    []
-  );
-  const [isAuthorInputFocused, setIsAuthorInputFocused] =
-    useState<boolean>(false);
-  const [isGenreInputFocused, setIsGenreInputFocused] =
-    useState<boolean>(false);
+  const {
+    suggestions: authorSuggestions,
+    setSuggestions: setAuthorSuggestions,
+    isInputFocused: isAuthorInputFocused,
+    setIsInputFocused: setIsAuthorInputFocused,
+    debouncedSearch: debouncedAuthorSearch,
+  } = useDebounceSearch(getAuthorsByName);
+
+  const {
+    suggestions: genreSuggestions,
+    setSuggestions: setGenreSuggestions,
+    isInputFocused: isGenreInputFocused,
+    setIsInputFocused: setIsGenreInputFocused,
+    debouncedSearch: debouncedGenreSearch,
+  } = useDebounceSearch(getGenresByName);
 
   const form = useForm<UpdateBookSchema>({
     resolver: zodResolver(updateBookSchema),
     defaultValues: {
-      title: "",
+      title: book.title,
       author: {
-        id: 0,
-        name: "",
+        id: book.author_id,
+        name: book.authorName,
       },
       genre: {
-        id: 0,
-        name: "",
+        id: book.genre_id,
+        name: book.genreName,
       },
-      price: 1,
-      stock: 1,
-      year: 2025,
+      price: book.price,
+      stock: book.stock,
+      year: book.year,
     },
   });
 
   const handleUpdateBook = async (data: UpdateBookSchema) => {
-    console.log(data);
-  };
-
-  const debounce = useCallback((func: Function, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
+    const updateBookPayload: UpdateBookPayload = {
+      id: book.id,
+      title: data.title,
+      author_id: data.author.id,
+      genre_id: data.genre.id,
+      price: data.price,
+      stock: data.stock,
+      year: data.year,
+      updated_at: new Date(),
     };
-  }, []);
 
-  const debouncedAuthorSearch = useCallback(
-    debounce(async (searchTerm: string) => {
-      if (searchTerm.length < 3) {
-        setAuthorSuggestions([]);
-        return;
-      }
+    const res = await updateBook(updateBookPayload);
 
-      const authors = await getAuthorsByName(searchTerm);
+    if (res) {
+      setBooks((prevState: any) => {
+        const updatedBooks = prevState.map((prevBook: BookExtended) =>
+          prevBook.id === updateBookPayload.id
+            ? {
+                ...prevBook,
+                title: updateBookPayload.title,
+                author_id: updateBookPayload.author_id,
+                genre_id: updateBookPayload.genre_id,
+                price: updateBookPayload.price,
+                stock: updateBookPayload.stock,
+                year: updateBookPayload.year,
+                updated_at: updateBookPayload.updated_at,
+                authorName: data.author.name,
+                genreName: data.genre.name,
+              }
+            : prevBook
+        );
+        return updatedBooks;
+      });
 
-      if (authors.length > 0) {
-        setAuthorSuggestions(authors);
-      }
-    }, 500),
-    []
-  );
-
-  const debouncedGenreSearch = useCallback(
-    debounce(async (searchTerm: string) => {
-      if (searchTerm.length < 3) {
-        setGenreSuggestions([]);
-        return;
-      }
-
-      const genres = await getGenresByName(searchTerm);
-
-      if (genres.length > 0) {
-        setGenreSuggestions(genres);
-      }
-    }, 500),
-    []
-  );
+      setEditModalOpen(false);
+    }
+  };
 
   return (
     <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
@@ -108,9 +118,9 @@ const EditBookForm = ({ book }: { book: BookExtended }) => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add new book</DialogTitle>
+          <DialogTitle>Edit book</DialogTitle>
           <DialogDescription>
-            Enter the details of the new book here. Click save when you're done.
+            Edit the details of the book here. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -279,6 +289,14 @@ const EditBookForm = ({ book }: { book: BookExtended }) => {
             </form>
           </Form>
         </div>
+        <DialogFooter>
+          <Button
+            type="submit"
+            onMouseDown={form.handleSubmit(handleUpdateBook)}
+          >
+            Save
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

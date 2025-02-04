@@ -10,22 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { BookExtended } from "@/db/types";
-import { deleteBook, searchBook } from "@/app/actions";
+import { deleteBook, getMissingBooks, searchBook } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import CreateBookForm from "./create-book-form";
 import EditBookForm from "./edit-book-form";
+import { Trash2 } from "lucide-react";
 
 export function BookList({ initialBooks }: { initialBooks: BookExtended[] }) {
   const router = useRouter();
@@ -33,30 +24,24 @@ export function BookList({ initialBooks }: { initialBooks: BookExtended[] }) {
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [books, setBooks] = useState<BookExtended[]>(initialBooks);
-  const [editingBook, setEditingBook] = useState<BookExtended | null>(null);
-
-  const handleUpdateBook = async () => {
-    // const res = await updateBook({
-    //   id: editingBook?.id,
-    //   title: editingBook?.title,
-    //   price: editingBook?.price,
-    //   updated_at: new Date(),
-    // });
-    // if (res) {
-    //   setEditingBook(null);
-    //   setBooks(
-    //     books.map((book) => (book.id === editingBook?.id ? editingBook : book))
-    //   );
-    //   router.refresh();
-    // }
-  };
 
   const handleDeleteBook = async (id: number) => {
-    // add fetch to fill removed books place in the table
     const res = await deleteBook(id);
 
     if (res) {
-      setBooks(books.filter((book) => book.id !== id));
+      const remainingBooks = books.filter((book) => book.id !== id);
+      const missingBooks = await getMissingBooks(
+        remainingBooks.map((book) => book.id)
+      );
+
+      setBooks((prevState) => {
+        const newState = prevState.filter((book) => book.id !== id);
+        if (missingBooks) {
+          newState.push(missingBooks);
+        }
+        return newState;
+      });
+
       router.refresh();
     }
   };
@@ -112,73 +97,12 @@ export function BookList({ initialBooks }: { initialBooks: BookExtended[] }) {
                 <TableCell>{new Date(book.created_at).getFullYear()}</TableCell>
                 <TableCell>${book.price}</TableCell>
                 <TableCell>
-                  <EditBookForm book={book} />
-                  {/* <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="mr-2"
-                        onClick={() => setEditingBook(book)}
-                      >
-                        Edit
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Edit Book</DialogTitle>
-                        <DialogDescription>
-                          Make changes to the book here. Click save when you're
-                          done.
-                        </DialogDescription>
-                      </DialogHeader>
-                      {editingBook && (
-                        <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-title" className="text-right">
-                              Title
-                            </Label>
-                            <Input
-                              id="edit-title"
-                              value={editingBook.title}
-                              onChange={(e) =>
-                                setEditingBook({
-                                  ...editingBook,
-                                  title: e.target.value,
-                                })
-                              }
-                              className="col-span-3"
-                            />
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-price" className="text-right">
-                              Price
-                            </Label>
-                            <Input
-                              id="edit-price"
-                              value={editingBook.price}
-                              onChange={(e) =>
-                                setEditingBook({
-                                  ...editingBook,
-                                  price: Number(e.target.value),
-                                })
-                              }
-                              className="col-span-3"
-                            />
-                          </div>
-                        </div>
-                      )}
-                      <DialogFooter>
-                        <Button type="submit" onClick={handleUpdateBook}>
-                          Save changes
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog> */}
+                  <EditBookForm book={book} setBooks={setBooks} />
                   <Button
                     variant="destructive"
                     onClick={() => handleDeleteBook(book.id)}
                   >
-                    Delete
+                    <Trash2 className="h-5 w-5" />
                   </Button>
                 </TableCell>
               </TableRow>
